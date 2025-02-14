@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.2.2
         with:
           submodules: true
 
@@ -52,21 +52,15 @@ jobs:
 
       - name: Set up Node.js
         if: env.need_update == 1
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4.2.0
         with:
           node-version: 'latest'
-
-      - name: Set up Python 3
-        if: env.need_update == 1
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
 
       - name: Install dependencies
         if: env.need_update == 1
         run: |
           sudo apt-get update
-          sudo apt-get install -y liblz4-tool zip android-sdk-libsparse-utils f2fs-tools linux-modules-extra-$(uname -r)
+          sudo apt-get install -y libprotobuf-dev liblz4-tool zip f2fs-tools linux-modules-extra-$(uname -r)
           sudo wget -O /usr/bin/samfirm https://github.com/DavidArsene/samfirm.js/releases/download/v0.3.0/samfirm.js && sudo chmod +x /usr/bin/samfirm
           sudo modprobe erofs f2fs
       
@@ -129,16 +123,17 @@ jobs:
           tar cvf ${{ env.latest_shortversion }}_patched_vbmeta.tar vbmeta.img
           rm vbmeta.img
 
-      - name: Extract vendor partition
+      - name: Extract vendor partition and create lpdump
         if: env.need_update == 1
         run: |
           tar xvf ${{ env.ap_tar }} super.img.lz4
           lz4 -d super.img.lz4 super.img
           rm super.img.lz4
-          simg2img super.img super_raw.img
+          ./tools/bin/simg2img super.img super_raw.img
           rm super.img
           mv super_raw.img super.img
-          python3 tools/bin/lpunpack.py -p vendor super.img .
+          ./tools/bin/lpdump super.img >> lpdump
+          ./tools/bin/lpunpack -p vendor super.img .
           rm super.img
           [[ -e vendor.img ]] && zip ${{ env.latest_shortversion }}_vendor.zip vendor.img
           #[[ -e vendor.img ]] && rm vendor.img
@@ -181,7 +176,7 @@ jobs:
 
       - name: Upload release assets
         if: env.need_update == 1
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2.2.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -198,3 +193,4 @@ jobs:
             ${{ env.latest_shortversion }}_vendor.zip
             ${{ env.latest_shortversion }}_TA_blobs.tar
             boot.img
+            lpdump
