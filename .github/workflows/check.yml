@@ -156,6 +156,14 @@ jobs:
           lz4 -d boot.img.lz4 boot.img
           rm boot.img.lz4
 
+      - name: Prepare AP and BL for release
+        if: env.need_update == 1
+        run: |
+          tar vf ${{ env.ap_tar }} --delete boot.img.lz4 dtbo.img.lz4 recovery.img.lz4 super.img.lz4 userdata.img.lz4 vbmeta.img.lz4 vbmeta_system.img.lz4 meta-data
+          md5sum ${{ env.ap_tar }} | sed "s/  .*\//  /;s/\.md5$//" >> ${{ env.ap_tar }}
+          tar vf ${{ env.bl_tar }} --delete vbmeta.img.lz4
+          md5sum ${{ env.bl_tar }} | sed "s/  .*\//  /;s/\.md5$//" >> ${{ env.bl_tar }}
+
       - name: Update current version
         if: env.need_update == 1
         run: |
@@ -184,6 +192,7 @@ jobs:
           tag_name: "${{ env.latest_shortversion }}_${{ matrix.omc }}"
           name: "${{ env.latest_shortversion }} - ${{ matrix.model }} - ${{ matrix.omc }}"
           files: |
+            ${{ env.ap_tar }}
             ${{ env.bl_tar }}
             ${{ env.cp_tar }}
             ${{ env.home_csc_tar }}
