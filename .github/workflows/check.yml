@@ -101,7 +101,7 @@ jobs:
       - name: Extract kernel images
         if: env.need_update == 1
         env:
-          FILES: boot.img.lz4 dtbo.img.lz4 vbmeta.img.lz4
+          FILES: boot.img.lz4 dtbo.img.lz4 vbmeta.img.lz4 init_boot.img.lz4 vendor_boot.img.lz4
         run: |
           for file in $FILES; do tar xvf ${{ env.ap_tar }} ${file}; done
           tar cvf ${{ env.latest_shortversion }}_kernel.tar *.lz4
@@ -123,7 +123,7 @@ jobs:
           tar cvf ${{ env.latest_shortversion }}_patched_vbmeta.tar vbmeta.img
           rm vbmeta.img
 
-      - name: Extract vendor partition and create lpdump
+      - name: Extract vendor partitions and create lpdump
         if: env.need_update == 1
         run: |
           tar xvf ${{ env.ap_tar }} super.img.lz4
@@ -134,9 +134,18 @@ jobs:
           mv super_raw.img super.img
           ./tools/bin/lpdump super.img >> lpdump
           ./tools/bin/lpunpack -p vendor super.img .
+          ./tools/bin/lpunpack -p system_dlkm super.img .
+          ./tools/bin/lpunpack -p vendor_dlkm super.img .
+          ./tools/bin/lpunpack -p odm_dlkm super.img .
           rm super.img
           [[ -e vendor.img ]] && zip ${{ env.latest_shortversion }}_vendor.zip vendor.img
+          [[ -e vendor_dlkm.img ]] && zip ${{ env.latest_shortversion }}_vendor_dlkm.zip vendor_dlkm.img
+          [[ -e system_dlkm.img ]] && zip ${{ env.latest_shortversion }}_system_dlkm.zip system_dlkm.img
+          [[ -e odm_dlkm.img ]] && zip ${{ env.latest_shortversion }}_odm_dlkm.zip odm_dlkm.img
           #[[ -e vendor.img ]] && rm vendor.img
+          [[ -e vendor_dlkm.img ]] && rm vendor_dlkm.img
+          [[ -e system_dlkm.img ]] && rm system_dlkm.img
+          [[ -e odm_dlkm.img ]] && rm odm_dlkm.img
 
       - name: Extract TA blobs for TWRP decryption
         if: env.need_update == 1
@@ -155,11 +164,39 @@ jobs:
           tar xvf ${{ env.ap_tar }} boot.img.lz4
           lz4 -d boot.img.lz4 boot.img
           rm boot.img.lz4
+          
+      - name: Extract vendor_boot partition
+        if: env.need_update == 1
+        run: |
+          tar xvf ${{ env.ap_tar }} vendor_boot.img.lz4
+          lz4 -d vendor_boot.img.lz4 vendor_boot.img
+          rm vendor_boot.img.lz4
+          
+      - name: Extract init_boot partition
+        if: env.need_update == 1
+        run: |
+          tar xvf ${{ env.ap_tar }} init_boot.img.lz4
+          lz4 -d init_boot.img.lz4 init_boot.img
+          rm init_boot.img.lz4
+        
+      - name: Extract dtbo partition
+        if: env.need_update == 1
+        run: |
+          tar xvf ${{ env.ap_tar }} dtbo.img.lz4
+          lz4 -d dtbo.img.lz4 dtbo.img
+          rm dtbo.img.lz4
+        
+      - name: Extract recovery partition
+        if: env.need_update == 1
+        run: |
+          tar xvf ${{ env.ap_tar }} recovery.img.lz4
+          lz4 -d recovery.img.lz4 recovery.img
+          rm recovery.img.lz4
 
       - name: Prepare AP and BL for release
         if: env.need_update == 1
         run: |
-          tar vf ${{ env.ap_tar }} --delete boot.img.lz4 dtbo.img.lz4 recovery.img.lz4 super.img.lz4 userdata.img.lz4 vbmeta.img.lz4 vbmeta_system.img.lz4 meta-data
+          tar vf ${{ env.ap_tar }} --delete boot.img.lz4 dtbo.img.lz4 recovery.img.lz4 super.img.lz4 userdata.img.lz4 vbmeta.img.lz4 vbmeta_system.img.lz4 meta-data init_boot.lz4 vendor_boot.lz4
           md5sum ${{ env.ap_tar }} | sed "s/  .*\//  /;s/\.md5$//" >> ${{ env.ap_tar }}
           tar vf ${{ env.bl_tar }} --delete vbmeta.img.lz4
           md5sum ${{ env.bl_tar }} | sed "s/  .*\//  /;s/\.md5$//" >> ${{ env.bl_tar }}
@@ -200,6 +237,13 @@ jobs:
             ${{ env.pit_file }}
             ${{ env.latest_shortversion }}_patched_vbmeta.tar
             ${{ env.latest_shortversion }}_vendor.zip
+            ${{ env.latest_shortversion }}_vendor_dlkm.zip
+            ${{ env.latest_shortversion }}_system_dlkm.zip
+            ${{ env.latest_shortversion }}_odm_dlkm.zip            
             ${{ env.latest_shortversion }}_TA_blobs.tar
             boot.img
+            vendor_boot.img
+            init_boot.img
+            dtbo.img
+            recovery.img
             lpdump
